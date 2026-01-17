@@ -15,7 +15,7 @@ A lightweight, mobile-friendly web interface for interacting with local LLMs run
 
 ---
 
-## 1. Prerequisites
+## Prerequisites
 
 ### LM Studio
 1.  **Download & Install:** Get [LM Studio](https://lmstudio.ai/) for Windows, Mac, or Linux.
