@@ -30,5 +30,15 @@ click on the **Developer/Local Server** tab (the `<->` icon on the left sidebar)
 ### Python Environment
 Ensure you have Python 3.8+ installed. You will need to install the following dependencies:
 
-```bash
-pip install fastapi uvicorn httpx qrcode[pil]
+fastapi uvicorn httpx qrcode[pil]
+
+
+## Project Structure
+.
+├── main.py            # The Python FastAPI backend
+└── static/
+    └── index.html     # The frontend interface
+
+## Setup
+
+python main.py
