@@ -38,8 +38,14 @@ fastapi uvicorn httpx qrcode[pil]
 
 ├── main.py
 
-└── static/
+└── static/index.html
 
 ## Setup
 
 python main.py
+
+## license
+Free to use for personal use.
+Not for commerical use, send me message :)
+
+
