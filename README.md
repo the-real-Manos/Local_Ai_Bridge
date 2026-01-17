@@ -35,9 +35,10 @@ fastapi uvicorn httpx qrcode[pil]
 
 ## Project Structure
 .
-├── main.py            # The Python FastAPI backend
+
+├── main.py
+
 └── static/
-    └── index.html     # The frontend interface
 
 ## Setup
 
