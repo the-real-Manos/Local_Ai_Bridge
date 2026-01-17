@@ -46,6 +46,6 @@ python main.py
 
 ## license
 Free to use for personal use.
-Not for commerical use, send me message :)
+Not for commerical use, tag me in a disccusion and send me message :)
 
 
