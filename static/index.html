@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <title>Local AI Bridge</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --chat-bg: #ffffff;
+            --text-color: #0f172a;
+            --bot-msg-bg: #f1f5f9;
+            --user-msg-bg: #2563eb;
+            --user-text: #ffffff;
+            --border-color: #e2e8f0;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #0f172a;
+            --chat-bg: #1e293b;
+            --text-color: #f1f5f9;
+            --bot-msg-bg: #334155;
+            --user-msg-bg: #3b82f6;
+            --user-text: #ffffff;
+            --border-color: #334155;
+        }
+
+        body { 
+            background-color: var(--bg-color); 
+            color: var(--text-color); 
+            transition: background 0.3s;
+            overscroll-behavior-y: none; 
+        }
+
+        header, .input-area, .modal-content, #canvas-panel { background-color: var(--chat-bg); border-color: var(--border-color); }
+        .msg-bot { background-color: var(--bot-msg-bg); color: var(--text-color); }
+        .msg-user { background-color: var(--user-msg-bg); color: var(--user-text); }
+        
+        .prose pre { background: #1e1e1e; padding: 0; border-radius: 8px; overflow: hidden; margin-top: 8px; margin-bottom: 8px; border: 1px solid var(--border-color); }
+        .prose code { font-family: 'Consolas', 'Monaco', monospace; }
+        
+        .code-header {
+            display: flex; justify-content: space-between; align-items: center;
+            background: #2d2d2d; color: #fff; padding: 6px 12px; font-size: 0.75rem;
+        }
+        .code-content { padding: 12px; overflow-x: auto; color: #d4d4d4; }
+
+        #canvas-panel { transition: width 0.3s ease-in-out; }
+        
+        /* Copy button style for chat bubbles */
+        .copy-msg-btn {
+            opacity: 0.5;
+            transition: opacity 0.2s;
+            cursor: pointer;
+        }
+        .copy-msg-btn:hover { opacity: 1; }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+    <header class="p-4 border-b flex justify-between items-center z-10 shrink-0 h-16">
+        <div class="flex items-center gap-3">
+            <div id="status-dot" class="w-3 h-3 rounded-full bg-gray-400 transition-colors duration-300"></div>
+            <h1 class="font-bold text-lg tracking-tight">AI Bridge</h1>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="toggleCanvas()" id="canvas-toggle" class="text-xs px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded hover:opacity-80">
+                Canvas
+            </button>
+            <button onclick="toggleModal()" class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
+            </button>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden relative">
+        <div class="flex-1 flex flex-col relative min-w-0">
+            <div id="chat-box" class="flex-1 overflow-y-auto p-4 flex flex-col gap-4 pb-24 overscroll-contain"></div>
+            <div class="input-area p-4 border-t w-full">
+                <div class="flex gap-2 max-w-5xl mx-auto">
+                    <input id="user-input" type="text" class="flex-1 p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-transparent" placeholder="Type a message..." autocomplete="off">
+                    <button id="action-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium transition shadow-md min-w-[100px] flex justify-center items-center">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="canvas-panel" class="w-0 border-l flex flex-col overflow-hidden relative shadow-xl z-20 absolute right-0 top-0 h-full md:relative bg-gray-50 dark:bg-slate-900">
+            <div class="p-3 border-b flex justify-between items-center bg-white dark:bg-slate-800 shrink-0">
+                <span class="font-bold text-sm">Canvas</span>
+                <div class="flex gap-2">
+                    <button id="canvas-lock-btn" onclick="toggleCanvasEdit()" class="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded hover:bg-yellow-200">Unlock</button>
+                    <button onclick="copyCanvas()" class="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded hover:bg-blue-200">Copy Code</button>
+                    <button onclick="closeCanvas()" class="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded hover:bg-gray-300">Close</button>
+                </div>
+            </div>
+            <textarea id="canvas-content" class="flex-1 p-4 bg-transparent outline-none font-mono text-sm resize-none whitespace-pre" spellcheck="false" readonly></textarea>
+        </div>
+    </div>
+
+    <div id="modal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50 backdrop-blur-sm">
+        <div class="modal-content p-6 rounded-2xl shadow-2xl w-[90%] max-w-sm relative">
+            <button onclick="toggleModal()" class="absolute top-4 right-4 text-gray-500 hover:text-red-500">✕</button>
+            <h2 class="text-xl font-bold mb-4">Settings</h2>
+            <div class="bg-white p-4 rounded-xl flex flex-col items-center justify-center mb-6 border">
+                <div id="qrcode" class="mb-3"></div>
+                <p class="text-xs text-gray-500 text-center break-all" id="current-url">...</p>
+            </div>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center p-3 rounded-lg bg-gray-100 dark:bg-gray-800">
+                    <span>Dark Mode</span>
+                    <button onclick="toggleTheme()" class="text-blue-600 font-bold text-sm">Toggle</button>
+                </div>
+                <button onclick="clearHistory()" class="w-full p-3 rounded-lg bg-red-100 text-red-600 font-medium hover:bg-red-200 transition">Clear History</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- State ---
+        const chatBox = document.getElementById('chat-box');
+        const userInput = document.getElementById('user-input');
+        const actionBtn = document.getElementById('action-btn');
+        const canvasPanel = document.getElementById('canvas-panel');
+        const canvasContent = document.getElementById('canvas-content');
+        const canvasLockBtn = document.getElementById('canvas-lock-btn');
+        
+        let abortController = null;
+        let isGenerating = false;
+        let sessionId = localStorage.getItem('ai_bridge_sid') || Math.random().toString(36).substring(2, 15);
+        if (!localStorage.getItem('ai_bridge_sid')) localStorage.setItem('ai_bridge_sid', sessionId);
+        let chatHistory = JSON.parse(localStorage.getItem('chat_history') || "[]");
+        let codeSnippets = {}; 
+
+        // --- Markdown Renderer ---
+        const renderer = new marked.Renderer();
+        renderer.code = function(token) {
+            let code = "";
+            let language = "text";
+            if (typeof token === 'object' && token.text) {
+                code = token.text;
+                language = token.lang || 'text';
+            } else {
+                code = token;
+                language = arguments[1] || 'text';
+            }
+            const id = Math.random().toString(36).substring(7);
+            codeSnippets[id] = code; 
+            return `<div class="prose"><pre><div class="code-header"><span>${language}</span><button onclick="openInCanvas('${id}')" class="text-xs bg-gray-600 hover:bg-gray-500 px-2 py-0.5 rounded text-white transition">Open in Canvas</button></div><div class="code-content"><code>${code}</code></div></pre></div>`;
+        };
+        marked.setOptions({ renderer: renderer });
+
+        // --- Window OnLoad ---
+        window.onload = async () => {
+            renderHistory();
+            userInput.focus();
+            applyTheme();
+            checkHealth();
+
+            // Special check: Only if history is empty, check connection before saying "Ready"
+            if (chatHistory.length === 0) {
+                try {
+                    const res = await fetch('/health');
+                    const data = await res.json();
+                    
+                    if (data.status === 'online') {
+                        appendMessage('system', 'System: Ready.');
+                    } else {
+                        throw new Error('Offline');
+                    }
+                } catch (e) {
+                    appendMessage('system', '[!] Warning: LM Studio not found. Bridge will retry on next request.');
+                }
+            }
+        };
+
+        // --- UNIVERSAL COPY FUNCTION ---
+        // This handles HTTP (fallback) and HTTPS (modern)
+        async function copyText(text, btnElement) {
+            let success = false;
+            
+            // 1. Try Modern API
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    success = true;
+                } catch (err) {
+                    console.warn("Clipboard API failed, trying fallback...", err);
+                }
+            }
+
+            // 2. Fallback for HTTP / Older Browsers
+            if (!success) {
+                try {
+                    const textArea = document.createElement("textarea");
+                    textArea.value = text;
+                    
+                    // Ensure it's not visible but part of DOM
+                    textArea.style.position = "fixed";
+                    textArea.style.left = "-9999px";
+                    textArea.style.top = "0";
+                    document.body.appendChild(textArea);
+                    
+                    textArea.focus();
+                    textArea.select();
+                    
+                    success = document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                } catch (err) {
+                    console.error("Fallback copy failed", err);
+                }
+            }
+
+            // 3. Visual Feedback
+            if (success && btnElement) {
+                const originalContent = btnElement.innerHTML;
+                // Check if button is text or icon
+                if (btnElement.querySelector('svg')) {
+                    // It's the chat button (Icon)
+                    btnElement.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="green" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+                    setTimeout(() => { btnElement.innerHTML = originalContent; }, 1500);
+                } else {
+                    // It's the canvas button (Text)
+                    btnElement.innerText = "Copied!";
+                    setTimeout(() => { btnElement.innerText = "Copy Code"; }, 1500);
+                }
+            } else {
+                alert("Failed to copy to clipboard. Please manually select and copy.");
+            }
+        }
+
+        // --- Chat Logic ---
+        function renderHistory() {
+            chatBox.innerHTML = '';
+            chatHistory.forEach(msg => appendMessage(msg.role, msg.content, false));
+            scrollToBottom();
+        }
+
+        function appendMessage(role, text, save = true) {
+            const div = document.createElement('div');
+            
+            div.className = role === 'user' 
+                ? "msg-user p-3 rounded-xl max-w-[95%] shadow-sm self-end mb-2 text-sm md:text-base break-words relative group"
+                : "msg-bot p-3 rounded-xl max-w-[95%] shadow-sm self-start mb-2 text-sm md:text-base prose w-full overflow-hidden relative group";
+            
+            if (role === 'assistant' || role === 'system') div.innerHTML = marked.parse(text);
+            else div.innerText = text;
+
+            // Add Copy Button for Assistant messages
+            if (role === 'assistant') {
+                const copyBtn = document.createElement('button');
+                copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+                copyBtn.className = "copy-msg-btn absolute top-2 right-2 text-gray-400 bg-white/50 dark:bg-black/50 p-1 rounded hover:text-blue-500";
+                copyBtn.title = "Copy Output";
+                
+                // Use new wrapper
+                copyBtn.onclick = () => copyText(div.innerText, copyBtn);
+                
+                div.appendChild(copyBtn);
+            }
+
+            chatBox.appendChild(div);
+            if (save && role !== 'system') {
+                chatHistory.push({ role, content: text });
+                localStorage.setItem('chat_history', JSON.stringify(chatHistory));
+            }
+            return div;
+        }
+
+        async function handleAction() {
+            if (isGenerating) {
+                if (abortController) abortController.abort();
+                isGenerating = false;
+                resetActionButton();
+                appendMessage('system', 'System: Stopped by user.');
+                return;
+            }
+            sendMessage();
+        }
+
+        async function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text) return;
+
+            userInput.value = '';
+            appendMessage('user', text);
+            scrollToBottom();
+
+            isGenerating = true;
+            actionBtn.innerText = "Stop";
+            actionBtn.classList.replace('bg-blue-600', 'bg-red-500');
+            actionBtn.classList.replace('hover:bg-blue-700', 'hover:bg-red-600');
+            
+            const botDiv = document.createElement('div');
+            botDiv.className = "msg-bot p-3 rounded-xl max-w-[95%] shadow-sm self-start mb-2 prose w-full relative group";
+            botDiv.innerHTML = '...';
+            chatBox.appendChild(botDiv);
+            scrollToBottom();
+
+            abortController = new AbortController();
+            let fullResponse = "";
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session_id: sessionId, messages: [{ role: "user", content: text }] }),
+                    signal: abortController.signal
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.replace('data: ', '').trim();
+                            if (data === '[DONE]') continue;
+                            try {
+                                const json = JSON.parse(data);
+                                const content = json.choices?.[0]?.delta?.content || "";
+                                fullResponse += content;
+                                botDiv.innerHTML = marked.parse(fullResponse);
+                                scrollToBottom();
+                            } catch (e) {}
+                        }
+                    }
+                }
+                
+                botDiv.remove(); 
+                appendMessage('assistant', fullResponse);
+
+            } catch (err) {
+                if (err.name !== 'AbortError') botDiv.innerText = "Error: Connection failed.";
+            } finally {
+                isGenerating = false;
+                resetActionButton();
+            }
+        }
+
+        function resetActionButton() {
+            actionBtn.innerText = "Send";
+            actionBtn.className = "bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium transition shadow-md min-w-[100px] flex justify-center items-center";
+        }
+
+        // --- Canvas Functions ---
+        window.openInCanvas = function(id) {
+            const code = codeSnippets[id];
+            if (!code) return;
+            canvasContent.value = code;
+            
+            canvasPanel.classList.remove('w-0');
+            if (window.innerWidth >= 768) canvasPanel.classList.add('w-1/2');
+            else canvasPanel.classList.add('w-full');
+            
+            setCanvasEditable(false);
+        }
+
+        function closeCanvas() {
+            canvasPanel.classList.remove('w-1/2', 'w-full');
+            canvasPanel.classList.add('w-0');
+        }
+
+        function toggleCanvas() {
+            if (canvasPanel.classList.contains('w-0')) {
+                if (!canvasContent.value) canvasContent.value = "// Select a code block from chat to view here.";
+                canvasPanel.classList.remove('w-0');
+                if (window.innerWidth >= 768) canvasPanel.classList.add('w-1/2');
+                else canvasPanel.classList.add('w-full');
+            } else {
+                closeCanvas();
+            }
+        }
+
+        function copyCanvas() {
+            // Use new wrapper
+            copyText(canvasContent.value, event.target);
+        }
+
+        function toggleCanvasEdit() {
+            const isReadOnly = canvasContent.hasAttribute('readonly');
+            setCanvasEditable(isReadOnly);
+        }
+
+        function setCanvasEditable(editable) {
+            if (editable) {
+                canvasContent.removeAttribute('readonly');
+                canvasLockBtn.innerText = "Lock";
+                canvasLockBtn.className = "text-xs bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200";
+                canvasContent.focus();
+            } else {
+                canvasContent.setAttribute('readonly', 'true');
+                canvasLockBtn.innerText = "Unlock";
+                canvasLockBtn.className = "text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded hover:bg-yellow-200";
+            }
+        }
+
+        // --- Utils ---
+        function scrollToBottom() { chatBox.scrollTop = chatBox.scrollHeight; }
+        
+        async function checkHealth() {
+            const statusDot = document.getElementById('status-dot');
+            try {
+                const res = await fetch('/health');
+                const data = await res.json();
+                if (data.status === 'online') {
+                    statusDot.classList.remove('bg-gray-400', 'bg-red-500');
+                    statusDot.classList.add('bg-green-500', 'shadow-lg', 'shadow-green-500/50');
+                } else {
+                    statusDot.classList.remove('bg-green-500', 'shadow-lg', 'shadow-green-500/50');
+                    statusDot.classList.add('bg-red-500');
+                }
+            } catch { 
+                statusDot.classList.remove('bg-green-500', 'shadow-lg', 'shadow-green-500/50');
+                statusDot.classList.add('bg-gray-400');
+            }
+            setTimeout(checkHealth, 5000);
+        }
+
+        function toggleModal() { 
+            const m = document.getElementById('modal');
+            m.classList.toggle('hidden'); 
+            if(!m.classList.contains('hidden')) generateQR(); 
+        }
+        
+        function generateQR() {
+            document.getElementById('qrcode').innerHTML = "";
+            document.getElementById('current-url').innerText = window.location.href;
+            new QRCode(document.getElementById("qrcode"), { text: window.location.href, width: 128, height: 128 });
+        }
+        
+        function clearHistory() { 
+            if(confirm("Clear history?")) { localStorage.removeItem('chat_history'); chatHistory = []; renderHistory(); toggleModal(); } 
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const next = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+        }
+
+        function applyTheme() { document.documentElement.setAttribute('data-theme', localStorage.getItem('theme') || 'light'); }
+
+        actionBtn.onclick = handleAction;
+        userInput.onkeydown = (e) => { if (e.key === 'Enter') handleAction(); };
+    </script>
+</body>
+</html>
