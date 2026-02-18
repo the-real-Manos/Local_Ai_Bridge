@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <title>Local AI Bridge</title>
+    <title>Local AI Bridge - Option A (Full Display)</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -36,20 +36,77 @@
             overscroll-behavior-y: none; 
         }
 
-        header, .input-area, .modal-content, #canvas-panel { background-color: var(--chat-bg); border-color: var(--border-color); }
-        .msg-bot { background-color: var(--bot-msg-bg); color: var(--text-color); }
-        .msg-user { background-color: var(--user-msg-bg); color: var(--user-text); }
+        header, .input-area, .modal-content, #canvas-panel { 
+            background-color: var(--chat-bg); 
+            border-color: var(--border-color); 
+        }
         
-        .prose pre { background: #1e1e1e; padding: 0; border-radius: 8px; overflow: hidden; margin-top: 8px; margin-bottom: 8px; border: 1px solid var(--border-color); }
-        .prose code { font-family: 'Consolas', 'Monaco', monospace; }
+        /* OPTION A: Full Display - Messages expand to show all content */
+        .msg-bot { 
+            background-color: var(--bot-msg-bg); 
+            color: var(--text-color);
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: pre-wrap;
+        }
+        
+        .msg-user { 
+            background-color: var(--user-msg-bg); 
+            color: var(--user-text);
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: pre-wrap;
+        }
+        
+        /* Ensure prose content wraps properly */
+        .prose {
+            max-width: 100% !important;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .prose p, .prose li, .prose div {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: pre-wrap;
+        }
+        
+        .prose pre { 
+            background: #1e1e1e; 
+            padding: 0; 
+            border-radius: 8px; 
+            margin-top: 8px; 
+            margin-bottom: 8px; 
+            border: 1px solid var(--border-color);
+            max-width: 100%;
+            overflow-x: auto;
+        }
+        
+        .prose code { 
+            font-family: 'Consolas', 'Monaco', monospace;
+            word-break: break-all;
+            white-space: pre-wrap;
+        }
         
         .code-header {
-            display: flex; justify-content: space-between; align-items: center;
-            background: #2d2d2d; color: #fff; padding: 6px 12px; font-size: 0.75rem;
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            background: #2d2d2d; 
+            color: #fff; 
+            padding: 6px 12px; 
+            font-size: 0.75rem;
         }
-        .code-content { padding: 12px; overflow-x: auto; color: #d4d4d4; }
+        
+        .code-content { 
+            padding: 12px; 
+            overflow-x: auto; 
+            color: #d4d4d4;
+        }
 
-        #canvas-panel { transition: width 0.3s ease-in-out; }
+        #canvas-panel { 
+            transition: width 0.3s ease-in-out; 
+        }
         
         /* Copy button style for chat bubbles */
         .copy-msg-btn {
@@ -65,7 +122,7 @@
     <header class="p-4 border-b flex justify-between items-center z-10 shrink-0 h-16">
         <div class="flex items-center gap-3">
             <div id="status-dot" class="w-3 h-3 rounded-full bg-gray-400 transition-colors duration-300"></div>
-            <h1 class="font-bold text-lg tracking-tight">AI Bridge</h1>
+            <h1 class="font-bold text-lg tracking-tight">AI Bridge - Full Display</h1>
         </div>
         <div class="flex gap-2">
             <button onclick="toggleCanvas()" id="canvas-toggle" class="text-xs px-3 py-1 bg-gray-200 dark:bg-gray-700 rounded hover:opacity-80">
@@ -243,8 +300,8 @@
             const div = document.createElement('div');
             
             div.className = role === 'user' 
-                ? "msg-user p-3 rounded-xl max-w-[95%] shadow-sm self-end mb-2 text-sm md:text-base break-words relative group"
-                : "msg-bot p-3 rounded-xl max-w-[95%] shadow-sm self-start mb-2 text-sm md:text-base prose w-full overflow-hidden relative group";
+                ? "msg-user p-3 rounded-xl max-w-[95%] shadow-sm self-end mb-2 text-sm md:text-base relative group"
+                : "msg-bot p-3 rounded-xl max-w-[95%] shadow-sm self-start mb-2 text-sm md:text-base prose w-full relative group";
             
             if (role === 'assistant' || role === 'system') div.innerHTML = marked.parse(text);
             else div.innerText = text;
