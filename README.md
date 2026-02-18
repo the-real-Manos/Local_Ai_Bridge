@@ -37,7 +37,6 @@ fastapi uvicorn httpx qrcode[pil]
 .
 
 ├── main.py
-
 └── static/index.html
 
 ## Setup
